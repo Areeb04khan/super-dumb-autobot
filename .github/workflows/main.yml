@@ -2,13 +2,17 @@ name: Super Dumb Heroes Automation
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Runs once a day at noon UTC. Adjust as needed.
+    - cron: '0 6,12,18 * * *'  # Runs once a day at noon UTC. Adjust as needed.
   workflow_dispatch:      # Allows you to trigger the workflow manually
 
 jobs:
   post-reel:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+
+     permissions:
+      contents: write
+    
 
     steps:
       - name: Checkout code
