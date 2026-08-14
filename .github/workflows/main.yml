@@ -4,14 +4,13 @@ on:
   schedule:
     # Runs at 12:00 AM, 6:00 AM, 12:00 PM, and 6:00 PM (UTC)
     - cron: '0 0,6,12,18 * * *'  
-  workflow_dispatch:      # Allows you to trigger the workflow manually
+  workflow_dispatch:      
 
 jobs:
   post-reel:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
-    # CRITICAL FIX: Grants the GITHUB_TOKEN permission to create Releases and upload video files
     permissions:
       contents: write
 
@@ -24,15 +23,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
-
+      # FIXED: Removed the broken FedericoCarboni action and added ffmpeg to apt-get
       - name: Install System Dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y fonts-dejavu-core fonts-dejavu-extra imagemagick
+          sudo apt-get install -y fonts-dejavu-core fonts-dejavu-extra imagemagick ffmpeg
           fc-cache -f -v
 
       - name: Install Python Dependencies
