@@ -1,0 +1,48 @@
+name: Super Dumb Heroes Automation
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Runs once a day at noon UTC. Adjust as needed.
+  workflow_dispatch:      # Allows you to trigger the workflow manually
+
+jobs:
+  post-reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # IMPORTANT: MoviePy requires ffmpeg. We use a dedicated action to install it reliably.
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+
+      # MoviePy also needs ImageMagick or system fonts to render text if you decide to add captions later
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-dejavu-core fonts-dejavu-extra imagemagick
+          fc-cache -f -v
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai requests moviepy==1.0.3 numpy edge-tts asyncio
+
+      - name: Run Super Dumb Heroes Bot
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
+          MAGIC_HOUR_API_KEY: ${{ secrets.MAGIC_HOUR_API_KEY }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+        run: python -u poster.py
+        
