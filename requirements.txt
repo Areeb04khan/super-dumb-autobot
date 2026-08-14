@@ -1,0 +1,8 @@
+openai>=1.0.0
+requests>=2.31.0
+moviepy==1.0.3
+numpy
+edge-tts
+huggingface_hub
+pillow
+
