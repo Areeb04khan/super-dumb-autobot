@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Super Dumb Heroes / Meme Bot v6.0 (Comedy & Aesthetic Overhaul)
-- Writing Engine: Satirical, hyper-specific deadpan humor prompts with few-shot examples
-- Voice Engine: ElevenLabs (Primary) -> Dry Sarcastic British Edge-TTS (Fallback)
-- Visuals: Modern dark-mode translucent meme card with clean typography (No 2012 Impact font)
-- Media Host: GitHub Releases Cache
+Super Dumb Heroes Bot v6.1 (The Anti-Spam & Viral Comedy Update)
+- Writing: High-IQ satirical comedy (OpenRouter/Groq)
+- Voice: ElevenLabs / Sarcastic Edge-TTS (Split generation for timing)
+- Visuals: Clean UI Card, EXIF metadata stripped to bypass IG filters
+- Video: Custom Frame Generator with Animated Progress Bar (Bypasses static pixel filter)
+- Audio: Randomized comedic gaps to prevent fingerprinting
+- Hosting: GitHub Releases
 """
-BOT_VERSION = "v6.0"
+BOT_VERSION = "v6.1"
 
 import PIL.Image
 if not hasattr(PIL.Image, 'ANTIALIAS'):
@@ -71,11 +73,6 @@ FEW-SHOT EXAMPLES OF THE HUMOR STYLE:
   Script: "He has to watch every single dust mite mate on his pillow before he can fall asleep."
   Prompt: "Cinematic portrait shot of Superman lying wide awake in bed staring at the ceiling in total psychological exhaustion, dark moody bedroom, 8k"
 
-- Example 3:
-  Hook: "Professor X claims he can read any mind on planet Earth..."
-  Script: "Which means he spends 80 percent of his day involuntarily listening to random men debating if they could beat a chimpanzee in a fistfight."
-  Prompt: "Raw photo of Professor X sitting in a wheelchair rubbing his temples in intense annoyance in a dimly lit office, hyper-realistic"
-
 Return strictly valid JSON:
 {
   "hero": "Character Name",
@@ -123,47 +120,50 @@ def generate_satirical_script() -> dict:
     raise RuntimeError("All LLM providers failed.")
 
 # ============================================================
-# TIER 2: HIGH-END VOICE ENGINE (ElevenLabs -> Sarcastic Edge-TTS)
+# TIER 2: HIGH-END SPLIT VOICE ENGINE (For Randomized Gaps)
 # ============================================================
 def generate_audio(data: dict) -> dict:
-    print("🎙️ Generating high-fidelity voiceover...")
-    full_text = f"{data['hook']} ... ... {data['script']}"
-    out_path = f"output/voice_{int(time.time())}.mp3"
+    print("🎙️ Generating split audio files for dynamic timing...")
+    texts = {"hook": data["hook"], "script": data["script"]}
+    paths = {}
 
     # Tier 1: ElevenLabs (Deep, Realistic Deadpan)
     if ELEVENLABS_API_KEY:
         try:
-            print("🎙️ [TTS 1/2] Generating via ElevenLabs (Adam/Deep Deadpan)...")
             from elevenlabs.client import ElevenLabs
             from elevenlabs import VoiceSettings
-
             client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
-            audio_stream = client.text_to_speech.convert(
-                text=full_text,
-                voice_id="pNInz6obpgDQGcFmaJgB", # Adam (clean, deadpan masculine voice)
-                model_id="eleven_multilingual_v2",
-                output_format="mp3_44100_128",
-                voice_settings=VoiceSettings(stability=0.68, similarity_boost=0.80, style=0.0, speed=0.92)
-            )
-            with open(out_path, "wb") as f:
-                for chunk in audio_stream:
-                    if chunk: f.write(chunk)
+            
+            for key, text in texts.items():
+                out_path = f"output/voice_{key}_{int(time.time())}.mp3"
+                audio_stream = client.text_to_speech.convert(
+                    text=text,
+                    voice_id="pNInz6obpgDQGcFmaJgB", # Adam
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
+                    voice_settings=VoiceSettings(stability=0.68, similarity_boost=0.80)
+                )
+                with open(out_path, "wb") as f:
+                    for chunk in audio_stream:
+                        if chunk: f.write(chunk)
+                paths[key] = out_path
             print("✅ ElevenLabs Voice generated successfully!")
-            return {"voice_path": out_path}
+            return paths
         except Exception as e:
             print(f"⚠️ ElevenLabs failed ({e}). Falling back to Edge-TTS...")
 
     # Tier 2: Edge-TTS (Dry British Narrative Tone)
     try:
-        print("🎙️ [TTS 2/2] Generating via Edge-TTS (Sarcastic British Delivery)...")
         import edge_tts
         async def _speak():
-            # en-GB-RyanNeural provides a drier, documentary-style sarcastic delivery
-            communicate = edge_tts.Communicate(full_text, "en-GB-RyanNeural", rate="-8%", pitch="-4Hz")
-            await communicate.save(out_path)
+            for key, text in texts.items():
+                out_path = f"output/voice_{key}_{int(time.time())}.mp3"
+                communicate = edge_tts.Communicate(text, "en-GB-RyanNeural", rate="-8%", pitch="-4Hz")
+                await communicate.save(out_path)
+                paths[key] = out_path
         asyncio.run(_speak())
         print("✅ Edge-TTS Voice generated successfully!")
-        return {"voice_path": out_path}
+        return paths
     except Exception as e:
         print(f"❌ Audio generation failed: {e}")
         sys.exit(1)
@@ -175,7 +175,6 @@ def generate_image(prompt: str) -> str:
     print(f"🎨 Generating raw visual prompt: {prompt}...")
     out_path = f"output/raw_img_{int(time.time())}.png"
 
-    # 1. Try Hugging Face FLUX
     if HF_TOKEN:
         try:
             print("🎨 [1/2] Rendering via Hugging Face (FLUX.1-schnell)...")
@@ -189,7 +188,6 @@ def generate_image(prompt: str) -> str:
         except Exception as e:
             print(f"⚠️ Hugging Face image failed: {e}")
 
-    # 2. Fallback to Pollinations AI
     try:
         print("🎨 [2/2] Rendering via Pollinations AI...")
         url = f"https://gen.pollinations.ai/image/{requests.utils.quote(prompt)}?model=flux&width=1080&height=1920&nologo=true"
@@ -206,36 +204,28 @@ def generate_image(prompt: str) -> str:
     raise RuntimeError("All Image engines failed.")
 
 # ============================================================
-# TIER 4: MODERN CARD COMPOSITOR (Clean Dark-Mode UI)
+# TIER 4: MODERN CARD COMPOSITOR (Metadata Scrubbed)
 # ============================================================
 def build_modern_meme_canvas(bg_image_path: str, data: dict) -> str:
-    """Composites a sleek, modern translucent card overlay instead of 2012 Impact font."""
     print("🖌️ Compositing modern high-contrast social card...")
     base_img = Image.open(bg_image_path).convert("RGBA").resize((1080, 1920), Image.Resampling.LANCZOS)
     
-    # Slight cinematic vignette/darkening on the background
     vignette = Image.new("RGBA", (1080, 1920), (5, 5, 10, 90))
     canvas = Image.alpha_composite(base_img, vignette)
 
-    # Card dimensions
     card_w, card_h = 960, 580
     card_x = (1080 - card_w) // 2
     card_y = 220
 
-    # Draw rounded translucent dark card
     card_layer = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
     card_draw = ImageDraw.Draw(card_layer)
     card_draw.rounded_rectangle(
         [card_x, card_y, card_x + card_w, card_y + card_h],
-        radius=32,
-        fill=(15, 15, 22, 225),
-        outline=(255, 255, 255, 35),
-        width=2
+        radius=32, fill=(15, 15, 22, 225), outline=(255, 255, 255, 35), width=2
     )
     canvas = Image.alpha_composite(canvas, card_layer).convert("RGB")
     draw = ImageDraw.Draw(canvas)
 
-    # Load fonts
     try:
         font_tag = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
         font_hook = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
@@ -244,42 +234,63 @@ def build_modern_meme_canvas(bg_image_path: str, data: dict) -> str:
     except:
         font_tag = font_hook = font_script = font_watermark = ImageFont.load_default()
 
-    # Draw Meta header in card
     draw.text((card_x + 40, card_y + 40), f"⚡ UNFILTERED HERO LOGS • {data.get('hero', 'HERO').upper()}", font=font_tag, fill="#FACC15")
 
-    # Draw Hook (Bold Setup)
     hook_lines = textwrap.wrap(data["hook"], width=38)
     cur_y = card_y + 100
     for line in hook_lines:
         draw.text((card_x + 40, cur_y), line, font=font_hook, fill="#FFFFFF")
         cur_y += 48
 
-    # Divider line inside card
     cur_y += 15
     draw.line([(card_x + 40, cur_y), (card_x + card_w - 40, cur_y)], fill=(255, 255, 255, 40), width=1)
     cur_y += 25
 
-    # Draw Script (Punchline)
     script_lines = textwrap.wrap(data["script"], width=42)
     for line in script_lines:
         draw.text((card_x + 40, cur_y), line, font=font_script, fill="#E2E8F0")
         cur_y += 42
 
-    # Bottom Handle Watermark
     draw.text((540, 1820), IG_HANDLE, font=font_watermark, fill=(255, 255, 255, 180), anchor="mm")
 
+    # ANTI-SPAM FIX: Extract raw image data to completely strip EXIF metadata
     out_card_path = f"output/card_{int(time.time())}.jpg"
-    canvas.save(out_card_path, "JPEG", quality=98)
+    clean_canvas = Image.new(canvas.mode, canvas.size)
+    clean_canvas.paste(canvas)
+    clean_canvas.save(out_card_path, "JPEG", quality=98, exif=b"")
     return out_card_path
 
-def create_final_reel(canvas_path: str, audio_path: str) -> str:
-    print("🎬 Rendering Master 1080x1920 Reel...")
-    from moviepy.editor import ImageClip, AudioFileClip
+# ============================================================
+# TIER 5: VIDEO ENGINE (Anti-Spam Motion & Audio Sync)
+# ============================================================
+def create_final_reel(canvas_path: str, audio_assets: dict) -> str:
+    print("🎬 Rendering Master Reel (With Anti-Spam Motion & Randomized Pauses)...")
+    from moviepy.editor import VideoClip, AudioFileClip, CompositeAudioClip
+    import numpy as np
+    from PIL import Image
 
-    voice = AudioFileClip(audio_path)
-    duration = min(voice.duration + 1.2, 30.0)
+    # 1. Randomized Audio Fingerprint Prevention
+    hook_clip = AudioFileClip(audio_assets["hook"]).set_start(0)
+    pause_length = random.uniform(0.8, 1.8) # Random gap prevents identical audio fingerprints
+    script_clip = AudioFileClip(audio_assets["script"]).set_start(hook_clip.duration + pause_length)
+    
+    final_audio = CompositeAudioClip([hook_clip, script_clip])
+    duration = min(final_audio.duration + 1.2, 30.0)
 
-    clip = ImageClip(canvas_path).set_duration(duration).set_audio(voice)
+    # 2. Dynamic Pixel Injector (Defeats the "Static Image" IG Filter)
+    base_img_array = np.array(Image.open(canvas_path).convert("RGB"))
+
+    def make_frame(t):
+        frame = np.copy(base_img_array)
+        progress_width = int(1080 * (t / duration))
+        
+        if progress_width > 0:
+            # Adds a vibrant yellow tracking bar to the absolute bottom of the screen
+            frame[-12:, :progress_width] = [250, 204, 21] 
+            
+        return frame
+
+    clip = VideoClip(make_frame, duration=duration).set_audio(final_audio)
     reel_path = f"output/final_reel_{int(time.time())}.mp4"
 
     clip.write_videofile(
@@ -291,7 +302,7 @@ def create_final_reel(canvas_path: str, audio_path: str) -> str:
         verbose=False,
         logger=None
     )
-    print("✅ High-bitrate Reel rendered successfully!")
+    print("✅ Anti-Spam Reel rendered successfully!")
     return reel_path
 
 # ============================================================
@@ -362,17 +373,17 @@ def run():
     # 1. Sharp Satirical Script
     data = generate_satirical_script()
     
-    # 2. Voice (ElevenLabs / Sarcastic British Edge-TTS)
-    audio_data = generate_audio(data)
+    # 2. Voice (Split generation for timing)
+    audio_assets = generate_audio(data)
     
     # 3. Cinematic Photography Image
     raw_img = generate_image(data["image_prompt"])
     
-    # 4. Modern Dark-Mode Card UI
+    # 4. Modern Dark-Mode Card UI (Metadata stripped)
     canvas_path = build_modern_meme_canvas(raw_img, data)
     
-    # 5. Composite High-Bitrate Reel
-    reel_path = create_final_reel(canvas_path, audio_data["voice_path"])
+    # 5. Composite Anti-Spam High-Bitrate Reel
+    reel_path = create_final_reel(canvas_path, audio_assets)
 
     if reel_path and post_to_instagram(reel_path, data["caption"]):
         print("\n🎉 MASTER COMEDY REEL PUBLISHED SUCCESSFULLY!")
@@ -381,4 +392,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-                  
+        
