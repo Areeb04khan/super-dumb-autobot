@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Super Dumb Heroes Bot v3.0 (The justmeme.wtf Upgrade)
-- Primary AI: justmeme.wtf (/ai-generate) for authentic meme templates & text
-- Fallback AI: OpenRouter (Text) + Hugging Face FLUX (Image)
-- Visuals: Smart blurred-background padding for horizontal templates to fit 9:16 Reels
-- Audio: Hardcoded comedic pauses between meme top_text and bottom_text
+Trending Meme Bot v4.0 (The Viral Engagement Upgrade)
+- Primary AI: justmeme.wtf targeting broad, relatable, trending memes.
+- Audio Engine: Advanced compositing with Hook -> SFX -> Punchline -> SFX -> Invisible CTA.
+- SFX Library: Dynamically fetches free Google Action sounds.
+- Visuals: Ultra-crisp 1080p (high bitrate) smart-padded templates.
+- Engagement: Built-in invisible TTS CTAs & caption comment-bait.
 """
-BOT_VERSION = "v3.0"
+BOT_VERSION = "v4.0"
 
 import PIL.Image
 if not hasattr(PIL.Image, 'ANTIALIAS'):
@@ -37,10 +38,20 @@ INSTAGRAM_USER_ID      = os.environ.get("INSTAGRAM_USER_ID", "")
 GITHUB_TOKEN           = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPOSITORY      = os.environ.get("GITHUB_REPOSITORY", "")
 
-IG_HANDLE = "@Super_dumb_heroes"
+IG_HANDLE = "@Super_dumb_heroes" # Feel free to change this to your new handle
 MEDIA_RELEASE_TAG = "media-cache"
 
 REQUIRED_ENV_VARS = ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID", "GITHUB_TOKEN"]
+
+# Reliable, free public domain SFX from Google's library
+SFX_URLS = [
+    "https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg",
+    "https://actions.google.com/sounds/v1/cartoon/clown_horn.ogg",
+    "https://actions.google.com/sounds/v1/cartoon/pop.ogg",
+    "https://actions.google.com/sounds/v1/cartoon/slide_whistle.ogg",
+    "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg",
+    "https://actions.google.com/sounds/v1/foley/glass_break.ogg"
+]
 
 def validate_environment():
     missing = [name for name in REQUIRED_ENV_VARS if not os.environ.get(name)]
@@ -49,51 +60,53 @@ def validate_environment():
         sys.exit(1)
 
 # ============================================================
-# TIER 1: CONTENT & IMAGE SELECTION (justmeme.wtf -> Fallback)
+# TIER 1: CONTENT (Broad, Trending Memes + CTAs)
 # ============================================================
 def generate_content() -> dict:
-    characters = ["Spider-Man", "Batman", "Thanos", "Superman", "The Flash", "Iron Man", "Deadpool"]
-    chosen_hero = random.choice(characters)
+    print("🧠 [1/2] Fetching Trending Meme via justmeme.wtf...")
     
-    print("🧠 [1/2] Trying justmeme.wtf API for Authentic Meme Generation...")
+    # Engaging questions to prompt algorithm-boosting comments
+    caption_ctas = [
+        "What would you do in this situation? Let me know below! 👇",
+        "Tag that one friend who literally always does this. 😂",
+        "Are you guilty of this? Be honest in the comments. 👀",
+        "If this isn't the most relatable thing today... comment your thoughts! 🗣️"
+    ]
+    
     try:
-        # Step 1: Let justmeme.wtf pick the template and write the joke
         meme_res = requests.post(
             "https://justmeme.wtf/api/v1/ai-generate", 
-            json={"prompt": f"A meme about {chosen_hero} complaining about a mundane everyday problem"},
+            # Switched prompt from superheroes to general viral relatability
+            json={"prompt": "A highly relatable, trending everyday struggle, embarrassing moment, or viral meme concept."},
             timeout=15
         ).json()
         
         if meme_res.get("success"):
             slug = meme_res.get("template")
-            top_text = meme_res.get("top_text", "")
-            bottom_text = meme_res.get("bottom_text", "")
             
-            # Step 2: Fetch the blank template image URL
             temp_res = requests.get(f"https://justmeme.wtf/api/v1/templates/{slug}", timeout=10).json()
             template_obj = temp_res.get("template", {})
-            img_url = template_obj.get("blank_url") or template_obj.get("url") or template_obj.get("image_url")
+            img_url = template_obj.get("blank_url") or template_obj.get("url")
             
             if img_url:
                 img_path = f"output/template_{int(time.time())}.jpg"
                 with open(img_path, "wb") as f:
                     f.write(requests.get(img_url, timeout=15).content)
                 
-                print("✅ Successfully generated meme via justmeme.wtf!")
+                print("✅ Authentic meme template secured!")
                 return {
                     "source": "justmeme",
-                    "hero": chosen_hero,
-                    "hook": top_text,
-                    "script": bottom_text,
+                    "hook": meme_res.get("top_text", ""),
+                    "script": meme_res.get("bottom_text", ""),
                     "image_path": img_path,
-                    "caption": f"Even heroes hate Mondays. 🦸‍♂️🤦‍♂️\n\nFollow @Super_dumb_heroes for daily struggles."
+                    "caption": f"Literally me. 💀\n\n{random.choice(caption_ctas)}\n\nFollow {IG_HANDLE} for daily memes."
                 }
     except Exception as e:
-        print(f"⚠️ justmeme.wtf failed ({e}). Falling back to Text AI + HuggingFace...")
+        print(f"⚠️ justmeme.wtf failed ({e}). Falling back to Text AI...")
 
-    # --- FALLBACK: If justmeme.wtf is down, we use the original LLM + FLUX method ---
-    prompt = f"""Write a short joke where {chosen_hero} is complaining about a mundane problem.
-Return JSON: {{"hero": "{chosen_hero}", "hook": "Setup...", "script": "Punchline...", "image_prompt": "Cinematic vertical 9:16 portrait of {chosen_hero} looking exhausted, 8k"}}"""
+    # --- FALLBACK: Standard AI Generation ---
+    prompt = """Write a highly relatable, viral 2-part meme joke about an everyday struggle.
+Return JSON: {"hook": "Top text setup...", "script": "Bottom text punchline...", "image_prompt": "Cinematic vertical 9:16 portrait of a person looking exhausted, 8k"}"""
 
     fallbacks = [
         {"name": "OpenRouter", "api_key": OPENROUTER_API_KEY, "url": "https://openrouter.ai/api/v1", "model": "openrouter/free"},
@@ -103,12 +116,10 @@ Return JSON: {{"hero": "{chosen_hero}", "hook": "Setup...", "script": "Punchline
     for provider in fallbacks:
         if not provider["api_key"]: continue
         try:
-            print(f"🔄 Trying {provider['name']}...")
             client = OpenAI(base_url=provider["url"], api_key=provider["api_key"])
             response = client.chat.completions.create(model=provider["model"], messages=[{"role": "user", "content": prompt}], temperature=0.8)
             data = json.loads(response.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip())
             
-            # Generate FLUX Image
             img_path = f"output/base_img_{int(time.time())}.png"
             if HF_TOKEN:
                 from huggingface_hub import InferenceClient
@@ -118,98 +129,140 @@ Return JSON: {{"hero": "{chosen_hero}", "hook": "Setup...", "script": "Punchline
             
             data["source"] = "fallback"
             data["image_path"] = img_path
-            data["caption"] = "Make it make sense. 🦸‍♂️🤦‍♂️\n\nFollow @Super_dumb_heroes for daily superhero struggles."
+            data["caption"] = f"Make it make sense. 🤦‍♂️\n\n{random.choice(caption_ctas)}\n\nFollow {IG_HANDLE}."
             return data
         except Exception as err:
-            print(f"⚠️ {provider['name']} failed: {err}")
-
+            pass
     sys.exit(1)
 
 # ============================================================
-# TIER 2: VOICE GENERATION (Comedic Timing)
+# TIER 2: VOICE & SFX ENGINE (Invisible CTA + Sound Effects)
 # ============================================================
-def generate_tts(data: dict) -> list:
-    print("🎙️ Generating audio (Setup and Punchline separately)...")
+def fetch_random_sfx() -> str:
+    """Downloads a random comedic sound effect from the Google library."""
+    url = random.choice(SFX_URLS)
+    path = f"output/sfx_{int(time.time())}_{random.randint(1,1000)}.ogg"
+    with open(path, "wb") as f:
+        f.write(requests.get(url, timeout=10).content)
+    return path
+
+def generate_tts(data: dict) -> dict:
+    print("🎙️ Generating Voiceover, CTAs, and SFX...")
     import edge_tts
-    lines = [data['hook'], data['script']]
+    
+    # The 3rd line is the "Invisible" CTA. It will be heard, but not written on the screen.
+    invisible_ctas = [
+        "Send this to that one friend who needs to hear it.",
+        "If you didn't laugh, tag a friend to waste their time too.",
+        "Share this to your story if you agree."
+    ]
+    
+    lines = [data['hook'], data['script'], random.choice(invisible_ctas)]
     output_paths = []
 
     async def _speak():
         for i, text in enumerate(lines):
             out_path = f"output/tts_part_{i}_{int(time.time())}.mp3"
-            # Using Guy for deadpan, sarcastic delivery
-            communicate = edge_tts.Communicate(text, "en-US-GuyNeural", rate="-15%", pitch="-5Hz")
+            # Part 3 (CTA) gets a slightly different pitch so it sounds like an "announcer" step-in
+            pitch = "-5Hz" if i < 2 else "+2Hz"
+            communicate = edge_tts.Communicate(text, "en-US-GuyNeural", rate="-10%", pitch=pitch)
             await communicate.save(out_path)
             output_paths.append(out_path)
 
     try:
         asyncio.run(_speak())
-        return output_paths
+        
+        # Download two random SFX for the compositing phase
+        sfx1 = fetch_random_sfx()
+        sfx2 = fetch_random_sfx()
+        
+        return {
+            "hook": output_paths[0],
+            "script": output_paths[1],
+            "cta": output_paths[2],
+            "sfx1": sfx1,
+            "sfx2": sfx2
+        }
     except Exception as e:
-        print(f"❌ FATAL: Edge-TTS failed: {e}")
+        print(f"❌ FATAL: Audio engine failed: {e}")
         sys.exit(1)
 
 # ============================================================
-# TIER 3: VIDEO COMPOSITOR (Smart Padding & Meme Fonts)
+# TIER 3: ADVANCED VIDEO COMPOSITOR
 # ============================================================
 def draw_meme_text(draw, text, y_pos, font):
     if not text: return
-    wrapped = "\n".join(textwrap.wrap(text.upper(), width=25))
-    x, outline = 540, 3
+    wrapped = "\n".join(textwrap.wrap(text.upper(), width=22))
+    x, outline = 540, 4
     
-    # Classic Meme Black Outline
     for dx in range(-outline, outline+1):
         for dy in range(-outline, outline+1):
             if dx != 0 or dy != 0:
                 draw.text((x+dx, y_pos+dy), wrapped, font=font, fill="black", anchor="mm", align="center")
-    # White inner text
     draw.text((x, y_pos), wrapped, font=font, fill="white", anchor="mm", align="center")
 
-def create_reel_video(data: dict, tts_paths: list) -> str:
-    print("🎬 Compositing Video with Meme Overlays...")
+def create_reel_video(data: dict, audio_assets: dict) -> str:
+    print("🎬 Compositing Video (Syncing SFX and CTAs)...")
     try:
-        from moviepy.editor import ImageClip, AudioFileClip, concatenate_audioclips
+        from moviepy.editor import ImageClip, AudioFileClip, CompositeAudioClip
         
-        # 1. AUDIO PACING (The 1.2 second comedic silence)
-        hook_audio = AudioFileClip(tts_paths[0])
-        script_audio = AudioFileClip(tts_paths[1])
-        silence = hook_audio.subclip(0, min(1.2, hook_audio.duration)).volumex(0)
-        final_audio = concatenate_audioclips([hook_audio, silence, script_audio])
-        duration = min(final_audio.duration + 1.0, 30.0)
+        # 1. AUDIO TIMELINE COMPOSITING
+        hook_audio = AudioFileClip(audio_assets["hook"]).set_start(0)
+        
+        # Play first SFX right after the hook
+        t_sfx1 = hook_audio.duration + 0.2
+        sfx1_audio = AudioFileClip(audio_assets["sfx1"]).volumex(0.6).set_start(t_sfx1)
+        
+        # Wait for comedic effect, then drop punchline
+        t_script = t_sfx1 + 1.2
+        script_audio = AudioFileClip(audio_assets["script"]).set_start(t_script)
+        
+        # Play second SFX right after punchline
+        t_sfx2 = t_script + script_audio.duration + 0.1
+        sfx2_audio = AudioFileClip(audio_assets["sfx2"]).volumex(0.8).set_start(t_sfx2)
+        
+        # Drop the invisible CTA voiceover
+        t_cta = t_sfx2 + 1.0
+        cta_audio = AudioFileClip(audio_assets["cta"]).set_start(t_cta)
+        
+        final_audio = CompositeAudioClip([hook_audio, sfx1_audio, script_audio, sfx2_audio, cta_audio])
+        duration = min(final_audio.duration + 0.5, 30.0)
 
-        # 2. VISUALS
+        # 2. VISUALS (Smart Padding)
         base_img = Image.open(data["image_path"]).convert("RGBA")
         
         if data.get("source") == "justmeme":
-            # Smart padding: Blurs the background to make horizontal templates fit a vertical Reel
-            bg_img = base_img.resize((1080, 1920), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(40)).convert("RGB")
+            bg_img = base_img.resize((1080, 1920), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(50)).convert("RGB")
             ratio = 1080 / float(base_img.size[0])
             new_h = int(float(base_img.size[1]) * ratio)
             fg_img = base_img.resize((1080, new_h), Image.Resampling.LANCZOS)
             bg_img.paste(fg_img, (0, (1920 - new_h) // 2), fg_img)
         else:
-            # Fallback handling: Adds dark overlay for readability
             dark_overlay = Image.new("RGBA", (1080, 1920), (0, 0, 0, 140))
             bg_img = Image.alpha_composite(base_img.resize((1080, 1920)), dark_overlay).convert("RGB")
             
         draw = ImageDraw.Draw(bg_img)
         try:
-            # Attempt to use a bold font for the meme aesthetic
-            font_meme = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60)
+            # Huge, bold font for meme readability
+            font_meme = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 75)
         except:
             font_meme = ImageFont.load_default()
 
-        # Place text at top and bottom of the vertical canvas
         draw_meme_text(draw, data["hook"], 300, font_meme)
         draw_meme_text(draw, data["script"], 1600, font_meme)
         
         captioned_img_path = f"output/captioned_{int(time.time())}.jpg"
-        bg_img.save(captioned_img_path, "JPEG", quality=95)
+        bg_img.save(captioned_img_path, "JPEG", quality=100) # Max JPEG quality
 
-        # 3. MOVIEPY RENDER
+        # 3. HIGH BITRATE MOVIEPY RENDER
         final_video = ImageClip(captioned_img_path).set_duration(duration).set_audio(final_audio)
         reel_path = f"output/reel_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-        final_video.write_videofile(reel_path, fps=24, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+        
+        # Pushing a heavy 8000k bitrate to trick Instagram into retaining ultimate crispness
+        final_video.write_videofile(
+            reel_path, fps=30, codec="libx264", audio_codec="aac", 
+            bitrate="8000k", verbose=False, logger=None
+        )
         
         return reel_path
     except Exception as e:
@@ -267,8 +320,8 @@ def run():
     os.makedirs("output", exist_ok=True)
     
     data = generate_content()
-    tts_paths = generate_tts(data)
-    reel_path = create_reel_video(data, tts_paths)
+    audio_assets = generate_tts(data)
+    reel_path = create_reel_video(data, audio_assets)
 
     if reel_path and post_to_instagram(reel_path, data["caption"]):
         print("\n🎉 WORKFLOW COMPLETED SUCCESSFULLY!")
@@ -277,4 +330,4 @@ def run():
 
 if __name__ == "__main__":
     run()
-    
+        
