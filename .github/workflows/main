@@ -1,4 +1,4 @@
-"name: Super Dumb Heroes Automation
+name: Super Dumb Heroes Automation
 
 on:
   schedule:
@@ -47,4 +47,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -u poster.py
         
-"
